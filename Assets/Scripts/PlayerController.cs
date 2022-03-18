@@ -20,6 +20,7 @@ public class PlayerController : MonoBehaviour
     private int jumpCount;
 
     private int cherryCount;
+    public bool isHurt;
 
     private void Awake()
     {
@@ -39,8 +40,12 @@ public class PlayerController : MonoBehaviour
     private void FixedUpdate()
     {
         isGround = Physics2D.OverlapCircle(groundCheck.position, 0.1f, ground);
-        GroundMove();
-        Jump();
+        if (!isHurt)
+        {
+            GroundMove();
+            Jump();
+        }
+
         SwitchAnim();
     }
 
@@ -56,6 +61,33 @@ public class PlayerController : MonoBehaviour
             Destroy(other.gameObject);
             cherryCount++;
             cherryNumber.text = cherryCount.ToString();
+        }
+    }
+
+    /// <summary>
+    /// 消灭敌人
+    /// </summary>
+    /// <param name="other"></param>
+    private void OnCollisionEnter2D(Collision2D other)
+    {
+        if (other.gameObject.CompareTag("Enemy"))
+        {
+            if (anim.GetBool("Falling"))
+            {
+                // Debug.Log($"击杀 {other.gameObject.name},{other.gameObject.GetComponent<Animator>()}");
+                //击杀
+                other.gameObject.GetComponent<Animator>().SetTrigger("Death");
+                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+                anim.SetBool("Jumpping", true);
+            }
+            else
+            {
+                //挨打
+                float retreatDistance = transform.position.x < other.gameObject.transform.position.x ? -5 : 5;
+                isHurt = true;
+                //被击退
+                rb.velocity = new Vector2(retreatDistance, rb.velocity.y);
+            }
         }
     }
 
@@ -99,6 +131,7 @@ public class PlayerController : MonoBehaviour
 
     private void SwitchAnim()
     {
+        // Debug.Log($"anim {isGround},{rb.velocity.y}");
         anim.SetFloat("Running", Mathf.Abs(rb.velocity.x));
         if (isGround)
         {
@@ -108,11 +141,24 @@ public class PlayerController : MonoBehaviour
         {
             //跳起上升中
             anim.SetBool("Jumpping", true);
+            anim.SetBool("Falling", false);
         }
         else if (rb.velocity.y < 0)
         {
+            // Debug.Log("Falling");
             anim.SetBool("Jumpping", false);
             anim.SetBool("Falling", true);
+        }
+
+        if (isHurt)
+        {
+            anim.SetBool("Hurt", true);
+            if (Mathf.Abs(rb.velocity.x) < 0.1f)
+            {
+                //击退效果结束
+                isHurt = false;
+                anim.SetBool("Hurt", false);
+            }
         }
     }
 
