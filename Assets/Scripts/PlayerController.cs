@@ -69,7 +69,7 @@ public class PlayerController : MonoBehaviour
             cherryNumber.text = cherryCount.ToString();
         }
 
-        Debug.Log($"trigger:{other.gameObject.tag}");
+        // Debug.Log($"trigger:{other.gameObject.tag}");
         if (other.CompareTag("DeadArea")) //摔死了
         {
             StartCoroutine(Die(true));
