@@ -2,12 +2,15 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class PlayerController : MonoBehaviour
 {
     public float speed;
     public float jumpForce;
+    [Tooltip("可以关闭的碰撞器")] public Collider2D disableColl;
+    public Transform cellingCheck;
     public Transform groundCheck;
     public LayerMask ground;
     public Text cherryNumber;
@@ -35,6 +38,8 @@ public class PlayerController : MonoBehaviour
         {
             jumpPressed = true;
         }
+
+        CrouchInput();
     }
 
     private void FixedUpdate()
@@ -51,16 +56,23 @@ public class PlayerController : MonoBehaviour
 
 
     /// <summary>
-    /// 收集物品
+    ///
     /// </summary>
     /// <param name="other"></param>
     private void OnTriggerEnter2D(Collider2D other)
     {
+        //收集物品
         if (other.CompareTag("Collection"))
         {
             Destroy(other.gameObject);
             cherryCount++;
             cherryNumber.text = cherryCount.ToString();
+        }
+
+        Debug.Log($"trigger:{other.gameObject.tag}");
+        if (other.CompareTag("DeadArea")) //摔死了
+        {
+            StartCoroutine(Die(true));
         }
     }
 
@@ -77,7 +89,7 @@ public class PlayerController : MonoBehaviour
                 // Debug.Log($"击杀 {other.gameObject.name},{other.gameObject.GetComponent<Animator>()}");
                 //击杀
                 other.gameObject.GetComponent<Animator>().SetTrigger("Death");
-                rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+                rb.velocity = new Vector2(rb.velocity.x, jumpForce * Time.fixedDeltaTime);
                 anim.SetBool("Jumpping", true);
             }
             else
@@ -97,7 +109,8 @@ public class PlayerController : MonoBehaviour
     {
         //这方法返回值只有3个 -1,0,1
         float horizontalMove = Input.GetAxisRaw("Horizontal");
-        rb.velocity = new Vector2(horizontalMove * speed, rb.velocity.y);
+        //在FixedUpdate里得乘以Time.fixedDeltaTime
+        rb.velocity = new Vector2(horizontalMove * speed * Time.fixedDeltaTime, rb.velocity.y);
 
         if (horizontalMove != 0)
         {
@@ -116,16 +129,35 @@ public class PlayerController : MonoBehaviour
         if (jumpPressed && isGround)
         {
             isJump = true;
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce * Time.fixedDeltaTime);
             jumpCount--;
             jumpPressed = false;
+            SoundManager.instance.PlayJump1();
         }
         else if (jumpPressed && jumpCount > 0 && !isGround)
         {
             //多段跳
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce * 1.4f * Time.fixedDeltaTime);
             jumpCount--;
             jumpPressed = false;
+            SoundManager.instance.PlayJump2();
+        }
+    }
+
+    private void CrouchInput()
+    {
+        if (!Physics2D.OverlapCircle(cellingCheck.position, 0.2f, ground)) //头顶没有阻挡物
+        {
+            if (Input.GetButton("Crouch"))
+            {
+                anim.SetBool("Crouching", true);
+                disableColl.enabled = false;
+            }
+            else
+            {
+                anim.SetBool("Crouching", false);
+                disableColl.enabled = true;
+            }
         }
     }
 
@@ -135,6 +167,7 @@ public class PlayerController : MonoBehaviour
         anim.SetFloat("Running", Mathf.Abs(rb.velocity.x));
         if (isGround)
         {
+            anim.SetBool("Jumpping", false);
             anim.SetBool("Falling", false);
         }
         else if (!isGround && rb.velocity.y > 0)
@@ -163,4 +196,15 @@ public class PlayerController : MonoBehaviour
     }
 
     #endregion
+
+    private IEnumerator Die(bool isFall)
+    {
+        if (isFall)
+        {
+            SoundManager.instance.PlayFall();
+        }
+
+        yield return new WaitForSeconds(1f);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+    }
 }

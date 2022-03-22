@@ -6,6 +6,7 @@ TagManager:
   tags:
   - Collection
   - Enemy
+  - DeadArea
   layers:
   - Default
   - TransparentFX
